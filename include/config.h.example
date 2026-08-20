@@ -34,6 +34,11 @@
 // per position (85 is confirmed on the reference hardware's "High" position).
 #define HRM_MAX_SPEED 85
 
+// Fan duty cycle (%) used while the remote switch is ON but no healthy HRM connection is
+// present (strap not connected/stale) - the switch alone drives the fan at this fixed speed
+// until a strap connects, at which point the BPM curve above takes over.
+#define FAN_NO_HRM_SPEED 85
+
 // Once running, the fan only turns off after dropping this many BPM below HRM_MIN_BPM -
 // avoids clicking on/off when BPM hovers right around the threshold.
 #define HRM_HYSTERESIS_BPM 5

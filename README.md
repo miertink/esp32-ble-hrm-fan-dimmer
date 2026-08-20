@@ -30,9 +30,14 @@ two things directly, with no other device or service involved:
   BPM hovers right around that threshold.
 - **Remote on/off**: an optional Home Assistant MQTT switch
   (`MQTT_FAN_POWER_COMMAND_TOPIC` / `MQTT_FAN_POWER_STATE_TOPIC` in
-  `config.h`) overrides the fan on top of the BPM curve - see "Home
-  Assistant" below. Defaults to ON, so the fan works normally if it's never
-  configured.
+  `config.h`) is the master kill switch - OFF always forces the fan off,
+  regardless of HRM state. While it's ON, control depends on whether a
+  strap is connected: with no healthy HRM connection the switch alone
+  drives the fan at a fixed fallback speed (`FAN_NO_HRM_SPEED`); once a
+  strap connects, the BPM curve takes over completely (including idling
+  the fan off at low BPM) and the switch can only turn the fan off, not
+  override the curve upward. Defaults to ON, so the fan works normally if
+  it's never configured - see "Home Assistant" below.
 - **RGB LED**: published over MQTT to a Tasmota RGB controller
   (`MQTT_ENABLE_ALL_TOPIC` / `MQTT_DIMMER_TOPIC` / `MQTT_BASE_COLOR_TOPIC`
   in `config.h`), colored by heart-rate zone (`HR_ZONE1_MIN`..`HR_ZONE5_MIN`
@@ -40,9 +45,10 @@ two things directly, with no other device or service involved:
   zones 1-5. The LED stays on (grey) whenever the strap is connected, even
   at rest, and only publishes when the color actually changes, to avoid
   spamming MQTT on every BLE notification (arrives roughly once a second).
-- **Safety**: the BLE link itself is the fan's kill switch - no connection,
-  a stale reading, or BPM below `HRM_MIN_BPM` forces it off immediately.
-  The LED additionally has an MQTT Last Will on `MQTT_ENABLE_ALL_TOPIC`, so
+- **Safety**: the remote switch is the fan's kill switch - turning it off
+  always forces the fan off immediately, regardless of HRM/BPM state. With
+  the switch ON, BPM below `HRM_MIN_BPM` (once a strap is connected) also
+  forces it off. The LED additionally has an MQTT Last Will on `MQTT_ENABLE_ALL_TOPIC`, so
   if this ESP32 crashes/loses power without disconnecting cleanly, the
   broker turns the LED off automatically rather than leaving it stuck on
   the last color shown.
@@ -92,6 +98,8 @@ and fill in:
 - `HRM_BASE_SPEED`/`HRM_MIN_BPM`/`HRM_MAX_BPM`/`HRM_MAX_SPEED`/
   `HRM_HYSTERESIS_BPM` - tune these to your actual riding HR range and
   fan's safe ceiling
+- `FAN_NO_HRM_SPEED` - fan duty cycle (%) while the remote switch is ON but
+  no strap is connected yet
 - `HR_ZONE1_MIN`..`HR_ZONE5_MIN` - your actual HR zone boundaries, for the
   LED color
 

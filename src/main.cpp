@@ -106,12 +106,16 @@ void updateFanLed() {
     }
 }
 
-// Hysteresis around HRM_MIN_BPM avoids the fan clicking on/off when BPM hovers near it.
+// The remote switch is the master kill switch (always wins when OFF). While it's ON: no
+// healthy HRM connection means the switch itself is the only control, so the fan runs at a
+// fixed fallback speed; once the strap connects, control passes to the BPM curve, which can
+// still idle the fan off at low BPM (with hysteresis around HRM_MIN_BPM to avoid clicking).
 void updateFanFromHrm() {
+    bool healthy = hrmHealthy();
     int bpm = currentBpm();
     int turnOffBelowBpm = HRM_MIN_BPM - HRM_HYSTERESIS_BPM;
     bool bpmOk = fanEnabled ? bpm > turnOffBelowBpm : bpm >= HRM_MIN_BPM;
-    bool shouldRun = fanRemoteEnabled && hrmHealthy() && bpmOk;
+    bool shouldRun = fanRemoteEnabled && (!healthy || bpmOk);
 
     if (!shouldRun) {
         if (fanEnabled) {
@@ -120,7 +124,7 @@ void updateFanFromHrm() {
             fanAppliedPercent = 0;
             fanDimmer.setPower(0);
             fanSpeedPercent = 0;
-            Serial.println(fanRemoteEnabled ? "HRM disconnected/stale/below threshold - fan forced OFF"
+            Serial.println(fanRemoteEnabled ? "BPM below threshold - fan forced OFF"
                                              : "Fan remote switch OFF - fan forced OFF");
         }
         return;
@@ -129,9 +133,9 @@ void updateFanFromHrm() {
     if (!fanEnabled) {
         fanDimmer.setState(ON);
         fanEnabled = true;
-        Serial.println("HRM connected - fan enabled");
+        Serial.println(healthy ? "HRM connected - fan enabled" : "HRM not connected - fan enabled at fallback speed");
     }
-    fanAppliedPercent = (uint8_t) computeFanTargetFromBpm(bpm);
+    fanAppliedPercent = (uint8_t) (healthy ? computeFanTargetFromBpm(bpm) : FAN_NO_HRM_SPEED);
     fanDimmer.setPower(fanAppliedPercent);
     fanSpeedPercent = fanAppliedPercent;
 }
